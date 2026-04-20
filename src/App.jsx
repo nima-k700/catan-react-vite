@@ -511,26 +511,11 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
       });
     }
 
-    const total = gs.players.length;
-    const setupTurn = gs.setupTurn + 1;
-    let nextPlayer = gs.currentPlayer;
-    let setupRound = gs.setupRound;
-    let phase = "setup";
-
-    // Snake order: 0,1,2,...,n-1,n-1,...,1,0 then main
-    if (gs.setupRound === 1) {
-      if (gs.currentPlayer < total - 1) nextPlayer = gs.currentPlayer + 1;
-      else { nextPlayer = total - 1; setupRound = 2; }
-    } else {
-      if (gs.currentPlayer > 0) nextPlayer = gs.currentPlayer - 1;
-      else phase = "roadSetup"; // place road for first player
-    }
-
-    if (phase !== "setup") phase = "roadSetup";
-
+    // FIX: Do NOT change players yet. Just switch phase to roadSetup for the current player!
     await updateGS({
-      verts: newVerts, players: newPlayers,
-      setupTurn, setupRound, currentPlayer: nextPlayer, phase,
+      verts: newVerts, 
+      players: newPlayers,
+      phase: "roadSetup",
       ...log(`${gs.players[myIndex].name} placed a settlement`)
     });
   }
@@ -540,6 +525,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
     if (gs.phase !== "roadSetup") return;
     const e = gs.edges[eid];
     if (e.road !== null) return;
+    
     // Must connect to own settlement
     const myVerts = gs.verts.filter(v => v.owner === myIndex);
     const connected = myVerts.some(v => v.adjacentEdges.includes(eid));
@@ -548,32 +534,37 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
     const newEdges = gs.edges.map((ee, i) => i === eid ? { ...ee, road: myIndex } : ee);
     const newPlayers = gs.players.map((p, i) => i === myIndex ? { ...p, roads: p.roads+1 } : p);
 
-    // Determine next phase
+    // FIX: Now that the road is placed, figure out who is next.
     const total = gs.players.length;
-    const nextSetupTurn = gs.setupTurn;
     let nextPlayer = gs.currentPlayer;
+    let setupRound = gs.setupRound;
     let phase = "setup";
+    let setupTurn = gs.setupTurn + 1;
 
-    // After road, advance normally
-    if (gs.setupRound === 2 && gs.currentPlayer === 0) {
-      phase = "main";
-      nextPlayer = 0;
-    } else if (gs.setupRound === 2) {
-      nextPlayer = gs.currentPlayer - 1;
-      phase = "setup";
-    } else {
+    // Snake draft order logic
+    if (gs.setupRound === 1) {
       if (gs.currentPlayer < total - 1) {
         nextPlayer = gs.currentPlayer + 1;
-        phase = "setup";
       } else {
-        nextPlayer = total - 1;
-        phase = "setup";
+        nextPlayer = total - 1; // Last player gets two turns in a row
+        setupRound = 2;
+      }
+    } else {
+      if (gs.currentPlayer > 0) {
+        nextPlayer = gs.currentPlayer - 1;
+      } else {
+        phase = "main"; // Setup is complete!
+        nextPlayer = 0; // Player 1 starts the real game
       }
     }
 
     await updateGS({
-      edges: newEdges, players: newPlayers,
-      currentPlayer: nextPlayer, phase,
+      edges: newEdges, 
+      players: newPlayers,
+      currentPlayer: nextPlayer, 
+      setupRound,
+      setupTurn,
+      phase,
       ...log(`${gs.players[myIndex].name} placed a road`)
     });
   }
@@ -995,9 +986,13 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
             {gs.edges.map(e => {
               const v1 = gs.verts[e.v1], v2 = gs.verts[e.v2];
               const mx=(v1.x+v2.x)/2, my=(v1.y+v2.y)/2;
-              const isClickable = isMyTurn && (action==="buildRoad"||action==="roadBuilding") && e.road===null;
+              
+              // FIX: Check if we are in roadSetup phase and if the road touches the player's settlement
+              const isSetupRoad = gs.phase === "roadSetup" && isMyTurn && e.road === null && (gs.verts[e.v1].owner === myIndex || gs.verts[e.v2].owner === myIndex);
+              const isNormalRoad = isMyTurn && (action==="buildRoad"||action==="roadBuilding") && e.road===null;
+              const isClickable = isSetupRoad || isNormalRoad;
               return (
-                <g key={e.id} onClick={() => isClickable && buildRoadAt(e.id)} style={{cursor:isClickable?"pointer":"default"}}>
+                <g key={e.id} onClick={() => isClickable && (gs.phase === "roadSetup" ? handleSetupEdgeClick(e.id) : buildRoadAt(e.id))} style={{cursor:isClickable?"pointer":"default"}}>
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
                     stroke={e.road!==null ? gs.players[e.road]?.color : isClickable?"#ffffff44":"transparent"}
                     strokeWidth={e.road!==null?6:isClickable?10:8} strokeLinecap="round"/>
