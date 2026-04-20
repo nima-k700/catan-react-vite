@@ -321,8 +321,22 @@ export default function CatanApp() {
     const snap = await get(ref(db, `games/${code}`));
     if (!snap.exists()) { setError("Room not found"); return; }
     const data = snap.val();
-    if (data.status !== "waiting") { setError("Game already started"); return; }
+    
     const players = data.players || [];
+
+    // FIX: Allow players to rejoin a game in progress if they get disconnected/refresh
+    if (data.status !== "waiting") { 
+      const existingPlayer = players.find(p => p.name.toLowerCase() === myName.trim().toLowerCase());
+      if (existingPlayer) {
+        setRoomId(code);
+        setMyIndex(existingPlayer.index);
+        setScreen("game");
+        return;
+      }
+      setError("Game already started. If you are trying to reconnect, use your exact original name."); 
+      return; 
+    }
+    
     if (players.length >= data.playerCount) { setError("Room is full"); return; }
     const idx = players.length;
     const newPlayer = { name: myName.trim(), color: COLORS[idx], colorName: COLOR_NAMES[idx], index: idx, isHost: false };
