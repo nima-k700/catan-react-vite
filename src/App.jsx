@@ -134,34 +134,35 @@ function hexCorners(cx, cy, size) {
 
 // Build vertex/edge maps from tile geometry
 function buildGraph(tiles, layout) {
-  const SNAP = 8;
-  const vertMap = {}; // key -> vertex id
   const verts = [];
   const edges = [];
   const edgeMap = {};
 
-  function snapKey(x, y) {
-    return `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
-  }
-
+  // FIX: Bulletproof distance-based vertex merging (replaces snapKey)
   function getVertex(x, y) {
-    const k = snapKey(x, y);
-    if (vertMap[k] === undefined) {
-      vertMap[k] = verts.length;
-      verts.push({ id: verts.length, x, y, building: null, owner: null, adjacentTiles: [] });
+    const TOLERANCE = 10; // merge if within 10 pixels
+    for (let i = 0; i < verts.length; i++) {
+      const v = verts[i];
+      if (Math.hypot(v.x - x, v.y - y) < TOLERANCE) {
+        return v.id; // Return existing vertex
+      }
     }
-    return vertMap[k];
+    const id = verts.length;
+    verts.push({ id, x, y, building: null, owner: null, adjacentTiles: [] });
+    return id; // Create and return new vertex
   }
 
   tiles.forEach(tile => {
     const { x: cx, y: cy } = hexCenter(tile, layout);
     const corners = hexCorners(cx, cy, HEX_SIZE - 2);
     const vIds = corners.map(c => getVertex(c.x, c.y));
+    
     vIds.forEach(vid => {
       if (!verts[vid].adjacentTiles.includes(tile.id)) {
         verts[vid].adjacentTiles.push(tile.id);
       }
     });
+    
     // edges between consecutive corners
     for (let i = 0; i < 6; i++) {
       const a = vIds[i], b = vIds[(i + 1) % 6];
@@ -528,9 +529,13 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
     // FIREBASE FIX: Check if road is a number
     if (typeof e.road === "number") return;
     
-    // Must connect to own settlement
+    // FIX: Find the settlement that was JUST placed (it will have 0 connected roads)
     const myVerts = gs.verts.filter(v => v.owner === myIndex);
-    const connected = myVerts.some(v => v.adjacentEdges.includes(eid));
+    const myEdgeIds = gs.edges.filter(e => e.road === myIndex).map(e => e.id);
+    const isolatedSettlements = myVerts.filter(v => !v.adjacentEdges.some(ae => myEdgeIds.includes(ae)));
+    
+    // The road MUST connect to one of these isolated settlements
+    const connected = isolatedSettlements.some(v => v.adjacentEdges.includes(eid));
     if (!connected) return;
 
     const newEdges = gs.edges.map((ee, i) => i === eid ? { ...ee, road: myIndex } : ee);
