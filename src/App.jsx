@@ -987,16 +987,22 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
               const v1 = gs.verts[e.v1], v2 = gs.verts[e.v2];
               const mx=(v1.x+v2.x)/2, my=(v1.y+v2.y)/2;
               
-              // FIX: Check if we are in roadSetup phase and if the road touches the player's settlement
-              const isSetupRoad = gs.phase === "roadSetup" && isMyTurn && e.road === null && (gs.verts[e.v1].owner === myIndex || gs.verts[e.v2].owner === myIndex);
-              const isNormalRoad = isMyTurn && (action==="buildRoad"||action==="roadBuilding") && e.road===null;
+              // NEW FIX: Ensures roads highlight correctly during Setup phase
+              const touchesMyVertex = (v1.owner === myIndex || v2.owner === myIndex);
+              const isSetupRoad = (gs.phase === "roadSetup" && isMyTurn && e.road === null && touchesMyVertex);
+              const isNormalRoad = (isMyTurn && (action === "buildRoad" || action === "roadBuilding") && e.road === null);
               const isClickable = isSetupRoad || isNormalRoad;
+
               return (
-                <g key={e.id} onClick={() => isClickable && (gs.phase === "roadSetup" ? handleSetupEdgeClick(e.id) : buildRoadAt(e.id))} style={{cursor:isClickable?"pointer":"default"}}>
+                <g key={e.id} onClick={() => {
+                  if (!isClickable) return;
+                  if (gs.phase === "roadSetup") handleSetupEdgeClick(e.id);
+                  else buildRoadAt(e.id);
+                }} style={{cursor: isClickable ? "pointer" : "default"}}>
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                    stroke={e.road!==null ? gs.players[e.road]?.color : isClickable?"#ffffff44":"transparent"}
-                    strokeWidth={e.road!==null?6:isClickable?10:8} strokeLinecap="round"/>
-                  {isClickable && <circle cx={mx} cy={my} r={6} fill="#ffffff55"/>}
+                    stroke={e.road !== null ? gs.players[e.road]?.color : (isClickable ? "#ffffffaa" : "transparent")}
+                    strokeWidth={e.road !== null ? 6 : (isClickable ? 10 : 8)} strokeLinecap="round"/>
+                  {isClickable && <circle cx={mx} cy={my} r={8} fill="#ffffffaa"/>}
                 </g>
               );
             })}
