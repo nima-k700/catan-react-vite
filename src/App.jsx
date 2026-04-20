@@ -987,13 +987,18 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
               const v1 = gs.verts[e.v1], v2 = gs.verts[e.v2];
               const mx=(v1.x+v2.x)/2, my=(v1.y+v2.y)/2;
               
-              // Safety cast to Number to guarantee the match works
               const meIdx = Number(myIndex); 
               const touchesMyVertex = (v1.owner === meIdx || v2.owner === meIdx);
               
               const isSetupRoad = (gs.phase === "roadSetup" && isMyTurn && e.road === null && touchesMyVertex);
               const isNormalRoad = (isMyTurn && (action === "buildRoad" || action === "roadBuilding") && e.road === null);
               const isClickable = isSetupRoad || isNormalRoad;
+
+              // --- DIAGNOSTIC TEST ---
+              // This forces the game to tell you if it mathematically knows you can build here
+              if (gs.phase === "roadSetup" && isMyTurn && touchesMyVertex) {
+                console.log(`Checking Road ${e.id}: touchesMyVertex is true. isClickable is ${isClickable}`);
+              }
 
               return (
                 <g key={e.id} onClick={() => {
@@ -1005,7 +1010,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
                   {/* Invisible fat line to make clicking easier */}
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y} stroke="transparent" strokeWidth={20} strokeLinecap="round" />
                   
-                  {/* Visible road line (uses standard opacity instead of 8-digit hex) */}
+                  {/* Visible road line using standard CSS colors */}
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
                     stroke={e.road !== null ? gs.players[e.road]?.color : (isClickable ? "white" : "transparent")}
                     strokeWidth={e.road !== null ? 6 : (isClickable ? 8 : 0)} 
@@ -1013,7 +1018,6 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
                     opacity={isClickable && e.road === null ? 0.6 : 1}
                   />
                   
-                  {/* White glowing dot indicator */}
                   {isClickable && <circle cx={mx} cy={my} r={7} fill="white" opacity={0.9} />}
                 </g>
               );
