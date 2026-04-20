@@ -927,7 +927,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
   return (
     <div style={styles.gameRoot}>
       {/* Winner Banner */}
-      {gs.winner !== null && (
+      {gs.status === "ended" && (
         <div style={styles.winnerBanner}>
           🏆 {gs.players[gs.winner]?.name} WINS with {gs.players[gs.winner]?.victoryPoints} VP!
         </div>
