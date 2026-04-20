@@ -583,7 +583,8 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
     const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
     const roll = d1 + d2;
 
-    let newPlayers = gs.players.map(p => ({ ...p }));
+    // We MUST deep clone the resources object to prevent double-click mutations!
+    let newPlayers = gs.players.map(p => ({ ...p, resources: { ...p.resources } }));
     let mustDiscard = [];
 
     if (roll === 7) {
@@ -885,7 +886,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
 
     // 5-6 player special building phase
     let buildingPhase = false;
-    if (total >= 5 && gs.diceRoll !== null) buildingPhase = true;
+    if (total >= 5 && gs.diceRoll) buildingPhase = true;
 
     await updateGS({
       currentPlayer: next,
@@ -946,8 +947,8 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
         <span style={{color:"#f39c12",fontWeight:900,fontSize:18}}>🏝️ CATAN</span>
         <span style={{color:"#aaa",fontSize:12}}>Room: <b style={{color:"#fff"}}>{roomId}</b></span>
         {gs.swapMode && <span style={{color:"#e74c3c",fontSize:12,fontWeight:700}}>🔄 SWAP MODE ON</span>}
-        {/* Swap mode toggle - only in setup or for host */}
-        {(myIndex===0) && (
+        {/* Swap mode toggle - only in setup before any settlements are placed */}
+        {(myIndex === 0 && gs.phase === "setup" && gs.setupTurn === 0) && (
           <button style={{...styles.smBtn, background:gs.swapMode?"#e74c3c":"#555"}} onClick={toggleSwapMode}>
             {gs.swapMode?"Stop Swapping":"Swap Tiles"}
           </button>
