@@ -287,10 +287,16 @@ export default function CatanApp() {
     gameRef.current = r;
     const unsub = onValue(r, snap => {
       const val = snap.val();
-      if (val) setGameState(val);
+      if (val) {
+        setGameState(val);
+        // FIX: Auto-transition other players when the host starts the game
+        if (val.status === "playing" && screen !== "game") {
+          setScreen("game");
+        }
+      }
     });
     return () => unsub();
-  }, [roomId]);
+  }, [roomId, screen]);
 
   async function createRoom() {
     if (!myName.trim()) { setError("Enter your name"); return; }
