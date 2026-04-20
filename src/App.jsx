@@ -878,7 +878,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
 
   // ── End Turn ──────────────────────────────────────────────────────────────
   async function endTurn() {
-    if (!isMyTurn || gs.diceRoll) return;
+    if (!isMyTurn || !gs.diceRoll) return;
     // Check for winner
     const winner = gs.players.findIndex(p => p.victoryPoints >= 10);
     const total = gs.players.length;
