@@ -524,7 +524,9 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
     if (!isMyTurn) return;
     if (gs.phase !== "roadSetup") return;
     const e = gs.edges[eid];
-    if (e.road !== null) return;
+    
+    // FIREBASE FIX: Check if road is a number
+    if (typeof e.road === "number") return;
     
     // Must connect to own settlement
     const myVerts = gs.verts.filter(v => v.owner === myIndex);
@@ -571,7 +573,8 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
 
   // ── Dice ────────────────────────────────────────────────────────────────
   async function rollDice() {
-    if (!isMyTurn || gs.phase !== "main" || gs.diceRoll !== null) return;
+    // Just check if the diceRoll array exists
+    if (!isMyTurn || gs.phase !== "main" || gs.diceRoll) return;
     const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
     const roll = d1 + d2;
 
@@ -651,7 +654,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
   }
 
   async function buildRoadAt(eid) {
-    if (gs.edges[eid].road !== null) return;
+    if (typeof gs.edges[eid].road === "number") return;
     const e = gs.edges[eid];
     // Must connect to own road or settlement
     const myVertsIds = gs.verts.filter(v => v.owner === myIndex).map(v => v.id);
@@ -869,7 +872,7 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
 
   // ── End Turn ──────────────────────────────────────────────────────────────
   async function endTurn() {
-    if (!isMyTurn || gs.diceRoll===null) return;
+    if (!isMyTurn || gs.diceRoll) return;
     // Check for winner
     const winner = gs.players.findIndex(p => p.victoryPoints >= 10);
     const total = gs.players.length;
@@ -990,15 +993,12 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
               const meIdx = Number(myIndex); 
               const touchesMyVertex = (v1.owner === meIdx || v2.owner === meIdx);
               
-              const isSetupRoad = (gs.phase === "roadSetup" && isMyTurn && e.road === null && touchesMyVertex);
-              const isNormalRoad = (isMyTurn && (action === "buildRoad" || action === "roadBuilding") && e.road === null);
+              // THE FIX: Firebase deletes 'null', so we check if someone actually owns it by looking for a number
+              const hasRoad = typeof e.road === "number";
+              
+              const isSetupRoad = (gs.phase === "roadSetup" && isMyTurn && !hasRoad && touchesMyVertex);
+              const isNormalRoad = (isMyTurn && (action === "buildRoad" || action === "roadBuilding") && !hasRoad);
               const isClickable = isSetupRoad || isNormalRoad;
-
-              // --- DIAGNOSTIC TEST ---
-              // This forces the game to tell you if it mathematically knows you can build here
-              if (gs.phase === "roadSetup" && isMyTurn && touchesMyVertex) {
-                console.log(`Checking Road ${e.id}: touchesMyVertex is true. isClickable is ${isClickable}`);
-              }
 
               return (
                 <g key={e.id} onClick={() => {
@@ -1010,12 +1010,12 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
                   {/* Invisible fat line to make clicking easier */}
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y} stroke="transparent" strokeWidth={20} strokeLinecap="round" />
                   
-                  {/* Visible road line using standard CSS colors */}
+                  {/* Visible road line */}
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                    stroke={e.road !== null ? gs.players[e.road]?.color : (isClickable ? "white" : "transparent")}
-                    strokeWidth={e.road !== null ? 6 : (isClickable ? 8 : 0)} 
+                    stroke={hasRoad ? gs.players[e.road]?.color : (isClickable ? "white" : "transparent")}
+                    strokeWidth={hasRoad ? 6 : (isClickable ? 8 : 0)} 
                     strokeLinecap="round" 
-                    opacity={isClickable && e.road === null ? 0.6 : 1}
+                    opacity={isClickable && !hasRoad ? 0.6 : 1}
                   />
                   
                   {isClickable && <circle cx={mx} cy={my} r={7} fill="white" opacity={0.9} />}
