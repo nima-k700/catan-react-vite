@@ -987,8 +987,10 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
               const v1 = gs.verts[e.v1], v2 = gs.verts[e.v2];
               const mx=(v1.x+v2.x)/2, my=(v1.y+v2.y)/2;
               
-              // NEW FIX: Ensures roads highlight correctly during Setup phase
-              const touchesMyVertex = (v1.owner === myIndex || v2.owner === myIndex);
+              // Safety cast to Number to guarantee the match works
+              const meIdx = Number(myIndex); 
+              const touchesMyVertex = (v1.owner === meIdx || v2.owner === meIdx);
+              
               const isSetupRoad = (gs.phase === "roadSetup" && isMyTurn && e.road === null && touchesMyVertex);
               const isNormalRoad = (isMyTurn && (action === "buildRoad" || action === "roadBuilding") && e.road === null);
               const isClickable = isSetupRoad || isNormalRoad;
@@ -999,10 +1001,20 @@ function GameBoard({ gs, myIndex, updateGS, roomId }) {
                   if (gs.phase === "roadSetup") handleSetupEdgeClick(e.id);
                   else buildRoadAt(e.id);
                 }} style={{cursor: isClickable ? "pointer" : "default"}}>
+                  
+                  {/* Invisible fat line to make clicking easier */}
+                  <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y} stroke="transparent" strokeWidth={20} strokeLinecap="round" />
+                  
+                  {/* Visible road line (uses standard opacity instead of 8-digit hex) */}
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                    stroke={e.road !== null ? gs.players[e.road]?.color : (isClickable ? "#ffffffaa" : "transparent")}
-                    strokeWidth={e.road !== null ? 6 : (isClickable ? 10 : 8)} strokeLinecap="round"/>
-                  {isClickable && <circle cx={mx} cy={my} r={8} fill="#ffffffaa"/>}
+                    stroke={e.road !== null ? gs.players[e.road]?.color : (isClickable ? "white" : "transparent")}
+                    strokeWidth={e.road !== null ? 6 : (isClickable ? 8 : 0)} 
+                    strokeLinecap="round" 
+                    opacity={isClickable && e.road === null ? 0.6 : 1}
+                  />
+                  
+                  {/* White glowing dot indicator */}
+                  {isClickable && <circle cx={mx} cy={my} r={7} fill="white" opacity={0.9} />}
                 </g>
               );
             })}
